@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Unit tests
+        shell: pwsh
+        run: |
+          $env:DISPLAYSPLIT_HOME = Join-Path $env:RUNNER_TEMP 'displaysplit-tests'
+          dotnet test tests/DisplaySplit.Tests -c Release
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          dotnet publish src/DisplaySplit -c Release "-p:Version=$v" -p:PublishAot=true -o out/aot
+          dotnet publish src/DisplaySplit -c Release "-p:Version=$v" -o out/fd
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          New-Item -ItemType Directory -Force dist, stage/aot, stage/fd | Out-Null
+          Copy-Item out/aot/DisplaySplit.exe, README.md, LICENSE, CHANGELOG.md stage/aot/
+          Copy-Item out/fd/DisplaySplit.exe,  README.md, LICENSE, CHANGELOG.md stage/fd/
+          Compress-Archive stage/aot/* "dist/DisplaySplit-$v-win-x64.zip"
+          Compress-Archive stage/fd/*  "dist/DisplaySplit-$v-win-x64-framework-dependent.zip"
+          Copy-Item out/aot/DisplaySplit.exe "dist/DisplaySplit-$v-win-x64.exe"
+          Get-ChildItem dist -File | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $changelog = Get-Content CHANGELOG.md -Raw
+          $m = [regex]::Match($changelog, "(?ms)^## \[$([regex]::Escape($v))\][^\n]*\n(.*?)(?=^## \[|^\[[^\]]+\]:|\z)")
+          $section = if ($m.Success) { $m.Groups[1].Value.Trim() } else { "See CHANGELOG.md." }
+          @"
+          ## Download
+
+          | File | What it is |
+          |---|---|
+          | **DisplaySplit-$v-win-x64.exe** | Standalone app (NativeAOT). Nothing to install. **Recommended.** |
+          | DisplaySplit-$v-win-x64.zip | The same exe, plus README, LICENSE and CHANGELOG |
+          | DisplaySplit-$v-win-x64-framework-dependent.zip | Smaller exe (~1 MB). Needs the [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
+
+          Put the exe somewhere permanent (for example ``%LOCALAPPDATA%\Programs\DisplaySplit``) and run it.
+          It registers itself to start with Windows; you can turn that off in the tray menu.
+          The exe isn't code-signed, so Windows SmartScreen may warn on first launch: choose **More info → Run anyway**.
+          Checksums are in ``SHA256SUMS.txt``.
+
+          ## Changes
+
+          $section
+          "@ | Set-Content notes.md -Encoding utf8
+          Get-Content notes.md
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $ghArgs = @('release', 'create', '${{ github.ref_name }}', '--title', "DisplaySplit $v", '--notes-file', 'notes.md', '--verify-tag')
+          if ('${{ steps.ver.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+          $ghArgs += (Get-ChildItem dist -File).FullName
+          gh @ghArgs

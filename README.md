@@ -1,95 +1,135 @@
 # DisplaySplit
 
-A tiny Windows 10/11 tray utility that splits a (ultrawide) monitor into zones, in the spirit of DisplayFusion's
-monitor splitting or FancyZones, built to be fast and light.
+[![CI](https://github.com/artkuc/DisplaySplit/actions/workflows/ci.yml/badge.svg)](https://github.com/artkuc/DisplaySplit/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/artkuc/DisplaySplit)](https://github.com/artkuc/DisplaySplit/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**Split your (ultrawide) monitor into zones. Double-click any window's title bar to snap it into the zone under the cursor.**
+
+A tiny, fast tray utility for Windows 10/11, in the spirit of DisplayFusion's monitor splitting or FancyZones, built to
+stay out of your way. Apps also reopen in the zones they had last time.
+
+![Layout editor: click to split, drag to resize](docs/images/editor.png)
+
+## Features
 
 - **Double-click a title bar**: the window fills the zone under the cursor. Double-click again to restore its
   previous size.
 - **Shift + double-click a title bar**: the window maximizes to the full monitor. Do it again to restore.
 - **Hold Shift while dragging a window**: zones light up, and releasing drops the window into the highlighted zone.
-- **Remembers where apps belong.** After a reboot, or when you relaunch an app, its windows reopen in the same zones.
-  Multi-window apps are matched by window title.
-- **Layout editor**: click to split, drag lines to resize, × to remove. Includes presets, named layouts, gaps and undo.
+- **Remembers where apps belong.** After a reboot or relaunch, windows reopen in their zones.
+  - Multi-window apps are matched by window title.
+  - Apps keep their place after updates.
+  - Windows that are already open at logon are arranged as well.
+- **Layout editor**:
+  - Click to split, drag lines to resize, × to remove.
+  - 8 presets, several named layouts per monitor, optional gaps, undo.
+  - Built-in help with every shortcut (`F1`).
+- **Light**: event-driven with no timers while idle (0 % CPU), about 9 MB of private memory, a single small exe.
+- **Private**: no network access, no telemetry. Settings are local JSON files.
 
-## Using it
+![Help card with all shortcuts](docs/images/help.png)
+
+## Install
+
+1. Download **`DisplaySplit-<version>-win-x64.exe`** from the
+   [latest release](https://github.com/artkuc/DisplaySplit/releases/latest). It's a standalone build: nothing to
+   install, no .NET required.
+2. Put it somewhere permanent, for example `%LOCALAPPDATA%\Programs\DisplaySplit\`.
+3. Run it. The layout editor opens with a starting layout: 25 / 50 / 25 on ultrawide screens, otherwise full screen.
+   Adjust it and press **Enter**.
+
+DisplaySplit registers itself to **start with Windows** (per user, no admin rights needed). You can turn that off in
+the tray menu.
+
+> **SmartScreen:** the exe isn't code-signed yet, so Windows may show "Windows protected your PC" on first launch.
+> Choose **More info → Run anyway**. `SHA256SUMS.txt` on the release page lets you verify the download.
+
+A smaller *framework-dependent* build (~1 MB) is also attached to each release. It needs the
+[.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+**Uninstall:** untick *Start with Windows* in the tray menu, choose **Exit**, then delete the exe and
+`%APPDATA%\DisplaySplit`.
+
+## Usage
+
+### Windows, anywhere
+
+| Action | Shortcut |
+|---|---|
+| Snap window into the zone under the cursor | Double-click its title bar |
+| Back to its previous size | Double-click the title bar again |
+| Maximize to full screen / restore | **Shift** + double-click the title bar |
+| Drop into a zone | Hold **Shift** while dragging a window |
+| Move window to the previous / next zone | `Win+Ctrl+Alt+←` / `→` |
+| Switch to layout 1…9 | `Win+Ctrl+Alt+1…9` |
+| Open the layout editor | `Win+Alt+Z`, left-click the tray icon, or start the exe again |
+
+### Layout editor
 
 | Action | How |
 |---|---|
-| Open the layout editor | Left-click the tray icon, press `Win+Alt+Z`, or start `DisplaySplit.exe` again |
-| Show help & all shortcuts | `F1` or the **?** button in the editor, or tray → *How to use & shortcuts…* |
-| Split a zone | Click inside it. Hold **Shift** for a horizontal split. The split snaps to 1/12ths of the screen; hold **Ctrl** for free placement |
-| Resize zones | Drag the line between them (Ctrl = no snapping) |
-| Merge / remove | Hover a line and click its **×**, or right-click it. Hover a zone and click its **×**, or right-click it |
-| Save / cancel / undo | `Enter` / `Esc` / `Ctrl+Z` |
-| Several layouts | `+ New` duplicates the current layout. Switch with `‹ ›`. Rename by clicking the name or pressing `F2` |
-| Switch layout | Tray → Layout, or `Win+Ctrl+Alt+1…9` |
-| Move window to neighbouring zone | `Win+Ctrl+Alt+←/→` |
-| Re-apply remembered positions | Tray → *Arrange all windows now* |
-| Stop remembering one app | Bring it to the front, then tray → *Don't remember "…"*. Undo it under *Excluded apps* |
+| Split a zone | Click inside it. Hold **Shift** for a horizontal split |
+| Resize zones | Drag the line between them. Lines snap to 1/12ths; hold **Ctrl** to turn snapping off |
+| Remove a zone or a line | Hover and click its **×**, or right-click it |
+| Undo | `Ctrl+Z` |
+| Several layouts | `+ New` duplicates the current layout; switch with `‹ ›` or `Ctrl+←/→`. `F2` renames |
+| Help & shortcuts | `F1` or the **?** button |
+| Save / cancel | `Enter` / `Esc` |
 
-On first launch the editor opens with a default layout: **25/50/25** on ultrawide screens (aspect ≥ 2.1), full screen
-otherwise. A short welcome card explains the basics. Windows 11 puts new tray icons in the overflow (^) area, so drag
-the icon onto the taskbar to keep it visible.
+### Tray menu
 
-## Resource use
+The tray menu lets you:
+- switch layouts, or add a new one from a preset;
+- re-apply remembered positions with *Arrange all windows now*;
+- stop remembering one app with *Don't remember "…"*, and undo that under *Excluded apps*;
+- toggle features, pause, and turn *Start with Windows* on or off.
 
-Everything is event-driven: there are no timers while idle, and the low-level mouse hook returns immediately for mouse
-moves. Measured on a 5120×2160 monitor:
-
-- Idle CPU: 0 ms over 3 s.
-- Memory: about 9 MB private and about 40 MB working set (Debug build).
-- Release exe: under 1 MB, single file, framework-dependent with ReadyToRun.
-- Editor frame time: about 1 ms while hovering and about 6 ms while dragging a divider.
-
-## Building
-
-Requires the .NET 10 SDK on Windows.
-
-```powershell
-dotnet build DisplaySplit.slnx
-dotnet test  tests/DisplaySplit.Tests
-dotnet publish src/DisplaySplit -c Release -o publish      # single-file exe, needs the .NET 10 runtime
-```
-
-The code is NativeAOT-compatible. If the Visual Studio "Desktop development with C++" workload is installed, this
-builds a fully self-contained exe of a few MB that doesn't need the .NET runtime:
-
-```powershell
-dotnet publish src/DisplaySplit -c Release -p:PublishAot=true -o publish-aot
-```
-
-### Tests
-
-- `tests/DisplaySplit.Tests` (xUnit) covers layout operations and invariants, presets, the double-click detector,
-  restore policy and slot matching, identity normalisation, JSON persistence and corrupt-file recovery, and Win32 struct
-  layouts.
-- `tests/E2E` is an end-to-end check against the real app on a test window. It covers snap, restore, maximize, a
-  DPI-unaware window, restore on relaunch, an app that moves itself after showing, and the `--autostart` arrange at
-  logon. It drives the real mouse for a few seconds. On a locked or headless desktop it switches automatically to
-  `--simulate`, which injects the hook's messages directly and checks the caption hit-testing separately.
-- `DisplaySplit.exe --snapshot-editor <dir>` (with `DISPLAYSPLIT_HOME=<temp dir>`) renders editor states to PNGs and
-  writes frame timings.
-
-## Data & settings
-
-`%APPDATA%\DisplaySplit\` contains `settings.json`, `layouts.json`, `placements.json` and `log.txt`.
-
-- Files are written atomically (temp file, fsync, `.bak`, then move).
-- If a file is corrupt, its `.bak` is used instead, and the corrupt file is kept as `*.corrupt-<time>`.
-- Set `DISPLAYSPLIT_HOME` to use a different folder. Set `DISPLAYSPLIT_DEBUG=1` for verbose logging.
-
-Autostart uses `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with `--autostart`. That flag also arranges
-windows that are already open at logon.
+Windows 11 puts new tray icons in the overflow area (^). Drag the icon onto the taskbar to keep it visible.
 
 ## Known limitations
 
-- **Admin windows**: if a window runs elevated and DisplaySplit doesn't, Windows blocks moving it. Its title bar keeps
-  the normal behaviour.
+- **Admin windows**: Windows doesn't let a normal app move an elevated (admin) window, so those keep their native
+  title-bar behaviour.
 - **Custom title bars**: some apps (for example the Windows 11 Explorer tab strip) only report a title bar to their top
-  window. Their double-click is only taken over when the click really started a window move. Otherwise the native
-  maximize happens.
-- Windows' own edge snapping can also trigger while Shift-dragging at the very edge of the screen.
-- Windows without a standard resize border (no `WS_THICKFRAME`, such as fixed dialogs and some custom-chrome apps)
-  are centred in the zone at their current size instead of being stretched.
+  window. DisplaySplit only takes over their double-click when the click really started a window move. Otherwise
+  Windows' own maximize happens.
+- **Fixed-size windows**: windows without a resize border are centred in the zone instead of stretched.
+- **Edge snapping**: Windows' own edge snapping can also trigger while Shift-dragging at the very edge of the screen.
 
-See `docs/PLAN.md` for the full design and the validation history.
+## Building from source
+
+You need Windows 10/11 x64 and the [.NET 10 SDK](https://dotnet.microsoft.com/download).
+
+```powershell
+git clone https://github.com/artkuc/DisplaySplit.git
+cd DisplaySplit
+dotnet build DisplaySplit.slnx
+dotnet test  tests/DisplaySplit.Tests
+dotnet publish src/DisplaySplit -c Release -o publish                       # ~1 MB, needs .NET runtime
+dotnet publish src/DisplaySplit -c Release -p:PublishAot=true -o publish    # standalone; needs VS C++ build tools
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout, tests and guidelines, and
+[docs/PLAN.md](docs/PLAN.md) for the design.
+
+### How it works, briefly
+
+1. A low-level mouse hook spots double-clicks on a dedicated high-priority thread. On the first click, a separate
+   probe thread asks the window under the cursor (`WM_NCHITTEST`) whether that spot is its title bar.
+2. If it is, the hook swallows the second click, so the app never maximizes itself, and the window is moved into the
+   zone.
+3. Calls into other processes that could block run on a placement worker thread with a watchdog. A hung app therefore
+   can't freeze the UI.
+4. Each app's windows are remembered as "slots" that hold the zone for every layout. When a new window of that app
+   appears, it is placed in its slot and watched for a few seconds. Apps like Chrome or VS Code restore their own
+   bounds right after opening, so this watch puts them back.
+
+## Contributing
+
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report security issues
+privately; see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © artkuc and DisplaySplit contributors.

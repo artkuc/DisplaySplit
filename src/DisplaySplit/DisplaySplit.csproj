@@ -11,6 +11,14 @@
     <RootNamespace>DisplaySplit</RootNamespace>
     <AssemblyName>DisplaySplit</AssemblyName>
     <Version>1.0.0</Version>
+    <Product>DisplaySplit</Product>
+    <Description>Split an (ultrawide) monitor into zones; double-click a title bar to snap a window into a zone.</Description>
+    <Authors>artkuc and contributors</Authors>
+    <Copyright>Copyright (c) 2026 artkuc and DisplaySplit contributors. MIT License.</Copyright>
+    <RepositoryUrl>https://github.com/artkuc/DisplaySplit</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 

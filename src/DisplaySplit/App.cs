@@ -22,6 +22,9 @@ public static class App
     public static HostWindow Host { get; private set; } = null!;
     public static bool IsUiThread => Kernel32.GetCurrentThreadId() == UiThreadId;
     public static uint ProcessId { get; } = Kernel32.GetCurrentProcessId();
+    public const string ProjectUrl = "https://github.com/artkuc/DisplaySplit";
+    public static string Version { get; } =
+        typeof(App).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "dev";
 
     internal static void Init(HostWindow host)
     {

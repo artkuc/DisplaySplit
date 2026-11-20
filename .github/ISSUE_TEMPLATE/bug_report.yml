@@ -1,0 +1,55 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a bug! Please fill in as much as you can.
+  - type: input
+    id: version
+    attributes:
+      label: DisplaySplit version
+      description: Shown at the top of the tray menu.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+  - type: input
+    id: monitors
+    attributes:
+      label: Monitor(s) and scaling
+      placeholder: "1× 5120×2160 at 150 %"
+  - type: input
+    id: app
+    attributes:
+      label: Affected app (if any)
+      placeholder: "VS Code 1.95, Chrome, Explorer, …"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: |
+        Start DisplaySplit with the environment variable DISPLAYSPLIT_DEBUG=1, reproduce, and paste the relevant part of
+        %APPDATA%\DisplaySplit\log.txt. It can contain window titles; remove anything private.
+      render: text

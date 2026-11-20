@@ -13,7 +13,7 @@ public sealed class Controller : IHostHandler, IDisposable
 
     // Tray menu ids
     const int M_EDIT = 1, M_ARRANGE = 2, M_EXCLUDE_FG = 3, M_FORGET_ALL = 4, M_DBL = 5, M_DRAG = 6, M_REMEMBER = 7,
-        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
+        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_PROJECT = 13, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
         M_INCLUDE_BASE = 5000;
 
     readonly Settings _settings;
@@ -344,6 +344,8 @@ public sealed class Controller : IHostHandler, IDisposable
     {
         var items = new List<MenuItem>
         {
+            new(0, $"DisplaySplit {App.Version}", Enabled: false),
+            MenuItem.Sep(),
             new(M_EDIT, "Edit layout…\tWin+Alt+Z", Default: true),
         };
         var monitors = MonitorService.Monitors;
@@ -380,6 +382,7 @@ public sealed class Controller : IHostHandler, IDisposable
         items.Add(new MenuItem(M_AUTOSTART, "Start with Windows", Checked: Autostart.IsEnabled()));
         items.Add(MenuItem.Sep());
         items.Add(new MenuItem(M_HELP, "How to use && shortcuts…"));
+        items.Add(new MenuItem(M_PROJECT, "Project page (GitHub)…"));
         items.Add(new MenuItem(M_OPEN_FOLDER, "Open settings folder"));
         items.Add(new MenuItem(M_PAUSE, _settings.Paused ? "Resume" : "Pause"));
         items.Add(new MenuItem(M_EXIT, "Exit"));
@@ -437,6 +440,10 @@ public sealed class Controller : IHostHandler, IDisposable
         switch (cmd)
         {
             case M_EDIT: OpenOrFocusEditor(); break;
+            case M_PROJECT:
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(App.ProjectUrl) { UseShellExecute = true }); }
+                catch (Exception ex) { Log.Warn(ex.Message); }
+                break;
             case M_HELP:
                 if (_editor != null) _editor.ShowHelp();
                 else OpenEditor(coach: true);

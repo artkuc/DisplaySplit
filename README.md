@@ -125,10 +125,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout, tests and guideli
    appears, it is placed in its slot and watched for a few seconds. Apps like Chrome or VS Code restore their own
    bounds right after opening, so this watch puts them back.
 
-## Contributing
+## Feedback
 
-Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report security issues
-privately; see [SECURITY.md](SECURITY.md).
+Bug reports and feature ideas are welcome as [issues](https://github.com/artkuc/DisplaySplit/issues/new/choose).
+This repository doesn't accept pull requests from outside contributors. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+details. Report security issues privately; see [SECURITY.md](SECURITY.md).
 
 ## License
 

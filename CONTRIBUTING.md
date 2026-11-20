@@ -1,6 +1,11 @@
 # Contributing to DisplaySplit
 
-Thanks for your interest! Bug reports, ideas and pull requests are welcome.
+Thanks for your interest! Bug reports and ideas are very welcome as
+[issues](https://github.com/artkuc/DisplaySplit/issues/new/choose).
+
+> **Pull requests:** this repository only accepts pull requests from its collaborators. If you'd like a change, please
+> open an issue describing it. If you have a fix, describe it there or link to a branch in your fork. You're also free to
+> fork the project under the MIT license.
 
 ## Reporting bugs
 
@@ -19,6 +24,8 @@ A verbose log helps a lot:
 4. Attach `%APPDATA%\DisplaySplit\log.txt`. Check it first: it contains window titles.
 
 ## Development setup
+
+This section is for collaborators, and for anyone building or modifying their own fork.
 
 - Windows 10 or 11 (x64)
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
@@ -73,7 +80,8 @@ docs/PLAN.md  design document, including the review history
   `PlacementWorker`.
 - **Test the core logic.** Pure logic goes in `Core/` with unit tests.
 - **Keep the style consistent.** Follow `.editorconfig` and the existing code style.
-- **One topic per pull request.** Describe what you tested, and include before/after screenshots for UI changes.
+- **One topic per pull request** (collaborators). Describe what you tested, and include before/after screenshots for
+  UI changes.
 
 ## Releasing (maintainers)
 
@@ -85,4 +93,4 @@ docs/PLAN.md  design document, including the review history
    ```
 3. The *Release* workflow builds, tests, packages and publishes the GitHub release.
 
-By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
+Contributions to this repository are licensed under the [MIT License](LICENSE).

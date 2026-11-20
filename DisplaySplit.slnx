@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DisplaySplit/DisplaySplit.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DisplaySplit.Tests/DisplaySplit.Tests.csproj" />
+    <Project Path="tests/E2E/E2E.csproj" />
+  </Folder>
+</Solution>

@@ -77,6 +77,8 @@ jobs:
 
           Put the exe somewhere permanent (for example ``%LOCALAPPDATA%\Programs\DisplaySplit``) and run it.
           It registers itself to start with Windows; you can turn that off in the tray menu.
+          To also manage windows of apps that run as administrator, use the standalone exe and tick
+          **Manage admin windows** in the tray menu (see the README).
           The exe isn't code-signed, so Windows SmartScreen may warn on first launch: choose **More info → Run anyway**.
           Checksums are in ``SHA256SUMS.txt``.
 

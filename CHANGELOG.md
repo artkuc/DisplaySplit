@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-23
+
 ### Added
 
 - **Manage admin windows** (tray menu, standalone build, administrator accounts): also snap and remember windows of apps
@@ -49,5 +51,6 @@ First public release.
 - **Tray menu**: switch layouts, arrange all windows, exclude apps, pause, start with Windows.
 - **Light on resources**: event-driven with no idle timers, about 9 MB private memory, and an optional NativeAOT build.
 
-[Unreleased]: https://github.com/artkuc/DisplaySplit/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/artkuc/DisplaySplit/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/artkuc/DisplaySplit/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/artkuc/DisplaySplit/releases/tag/v1.0.0

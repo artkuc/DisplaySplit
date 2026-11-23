@@ -85,4 +85,7 @@ public static class App
     }
 
     public static void Quit() => User32.PostQuitMessage(0);
+
+    /// <summary>Runs once after a clean shutdown (data flushed, single-instance mutex released).</summary>
+    public static Action? AfterExit { get; set; }
 }

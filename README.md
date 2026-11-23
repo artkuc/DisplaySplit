@@ -48,8 +48,9 @@ the tray menu.
 A smaller *framework-dependent* build (~1 MB) is also attached to each release. It needs the
 [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
 
-**Uninstall:** untick *Start with Windows* in the tray menu, choose **Exit**, then delete the exe and
-`%APPDATA%\DisplaySplit`.
+**Uninstall:** untick *Start with Windows* (and *Manage admin windows*, if you turned it on) in the tray menu, choose
+**Exit**, then delete the exe and `%APPDATA%\DisplaySplit`. If you used admin mode, also delete
+`C:\Program Files\DisplaySplit` (needs administrator rights).
 
 ## Usage
 
@@ -83,14 +84,38 @@ The tray menu lets you:
 - switch layouts, or add a new one from a preset;
 - re-apply remembered positions with *Arrange all windows now*;
 - stop remembering one app with *Don't remember "…"*, and undo that under *Excluded apps*;
-- toggle features, pause, and turn *Start with Windows* on or off.
+- toggle features, pause, and turn *Start with Windows* on or off;
+- turn on *Manage admin windows* (see below).
+
+### Windows of apps that run as administrator
+
+Windows doesn't let a normal app move the windows of an app that runs as administrator. To manage those too, tick
+**Manage admin windows** in the tray menu. It is offered to administrator accounts with the standalone build.
+
+- Windows asks for administrator rights **once**, when you turn it on. After that DisplaySplit starts with
+  administrator rights without a prompt, also at sign-in.
+- DisplaySplit copies itself to `C:\Program Files\DisplaySplit` and adds an on-demand scheduled task,
+  `DisplaySplit-Admin-<your SID>`, that starts that copy elevated. Only administrators can change the copy or the task.
+  Starting DisplaySplit normally (or at sign-in) hands over to that task.
+- While it is on, settings live in `C:\Program Files\DisplaySplit\data\<your SID>` (only you can read them, only
+  administrators can change them). Turning it off moves them back to `%APPDATA%\DisplaySplit`.
+- To update: untick the item, exit, start the new exe and tick the item again. (Starting a different copy while it is
+  on just starts the installed copy. It deliberately doesn't offer to install itself, so no other program can use
+  DisplaySplit's own dialog to talk you into a UAC prompt.)
+- Untick the item to turn it off: the task is removed and DisplaySplit restarts without administrator rights. The copy
+  in `C:\Program Files\DisplaySplit` stays (autostart uses it); delete that folder as administrator to remove it.
+
+Only turn this on for a copy of DisplaySplit you trust: it runs with full administrator rights. Starting DisplaySplit
+with *Run as administrator* doesn't work any more: it restarts itself without administrator rights, because an elevated
+process must not use the normal settings folder.
 
 Windows 11 puts new tray icons in the overflow area (^). Drag the icon onto the taskbar to keep it visible.
 
 ## Known limitations
 
 - **Admin windows**: Windows doesn't let a normal app move an elevated (admin) window, so those keep their native
-  title-bar behaviour.
+  title-bar behaviour unless you turn on [Manage admin windows](#windows-of-apps-that-run-as-administrator)
+  (standalone build only).
 - **Custom title bars**: some apps (for example the Windows 11 Explorer tab strip) only report a title bar to their top
   window. DisplaySplit only takes over their double-click when the click really started a window move. Otherwise
   Windows' own maximize happens.

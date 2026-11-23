@@ -51,6 +51,12 @@
     <StackTraceSupport>false</StackTraceSupport>
   </PropertyGroup>
 
+  <!-- NativeAOT: resolve the exe's own (static and delayed) DLL imports from System32 only, never from the folder the
+       exe sits in (e.g. Downloads, where a planted DLL would otherwise load into the elevated admin-mode installer). -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <LinkerArg Include="/DEPENDENTLOADFLAG:0x800" />
+  </ItemGroup>
+
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
     <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />

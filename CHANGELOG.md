@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Manage admin windows** (tray menu, standalone build, administrator accounts): also snap and remember windows of apps
+  that run as administrator. Turning it on asks for administrator rights once. DisplaySplit then installs a protected
+  copy in `C:\Program Files\DisplaySplit` and starts it elevated through an on-demand scheduled task, without further
+  prompts. See the README and SECURITY.md for how this is kept safe.
+
+### Security
+
+- Browser and Explorer windows opened from the tray are never started elevated.
+- Native libraries are resolved from System32 only.
+
+### Changed
+
+- Started with *Run as administrator*, DisplaySplit now restarts itself without administrator rights (an elevated
+  process must not use the user-writable settings folder). Use *Manage admin windows* instead.
+
 ## [1.0.0] - 2026-11-20
 
 First public release.

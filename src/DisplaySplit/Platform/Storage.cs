@@ -9,19 +9,60 @@ namespace DisplaySplit.Platform;
 /// </summary>
 public static class Storage
 {
-    public static string Home { get; } = ResolveHome();
+    static string? _home;
+
+    /// <summary>Data directory. The user's own folder, or the protected admin-mode folder (see <see cref="UseDirectory"/>).</summary>
+    public static string Home => _home ??= ResolveHome();
+
+    /// <summary>
+    /// Redirect all storage (and the log) to <paramref name="dir"/>. Admin mode calls this first thing in Main, before
+    /// anything is logged, so an elevated process never writes into a folder the non-elevated user can modify.
+    /// </summary>
+    public static void UseDirectory(string dir)
+    {
+        _home = dir;
+        Log.ResetPath();
+    }
+
+    /// <summary>The non-elevated user's data folder (DISPLAYSPLIT_HOME or %APPDATA%\DisplaySplit). Not created here.</summary>
+    public static string UserHome()
+    {
+        string? env = Environment.GetEnvironmentVariable("DISPLAYSPLIT_HOME");
+        return !string.IsNullOrWhiteSpace(env)
+            ? env
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DisplaySplit");
+    }
 
     static string ResolveHome()
     {
-        string? env = Environment.GetEnvironmentVariable("DISPLAYSPLIT_HOME");
-        string dir = !string.IsNullOrWhiteSpace(env)
-            ? env
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DisplaySplit");
+        string dir = UserHome();
         Directory.CreateDirectory(dir);
         return dir;
     }
 
     public static string PathOf(string name) => Path.Combine(Home, name);
+
+    /// <summary>
+    /// Read a document from another directory (admin-mode migration). Refuses reparse points (symlinks/junctions)
+    /// and oversized files; only typed data comes out, never raw bytes.
+    /// </summary>
+    public static bool TryLoadFrom<T>(string dir, string name, JsonTypeInfo<T> info, out T? value) where T : class
+    {
+        value = null;
+        string path = Path.Combine(dir, name);
+        try
+        {
+            var fi = new FileInfo(path);
+            if (!fi.Exists) return false;
+            if ((fi.Attributes & FileAttributes.ReparsePoint) != 0 || fi.Length > 64L * 1024 * 1024)
+            {
+                Log.Warn($"migrate: skipped {path} (reparse point or too large)");
+                return false;
+            }
+        }
+        catch (Exception ex) { Log.Warn($"migrate {path}: {ex.Message}"); return false; }
+        return TryRead(path, info, out value);
+    }
 
     public static T Load<T>(string name, JsonTypeInfo<T> info, Func<T> defaults, out bool loadedFromDisk) where T : class
     {
@@ -59,9 +100,12 @@ public static class Storage
     }
 
     /// <summary>Returns false if the write failed (caller should retry later).</summary>
-    public static bool Save<T>(string name, T value, JsonTypeInfo<T> info)
+    public static bool Save<T>(string name, T value, JsonTypeInfo<T> info) => SaveTo(Home, name, value, info);
+
+    /// <summary>Like <see cref="Save{T}"/>, into an explicit directory.</summary>
+    public static bool SaveTo<T>(string dir, string name, T value, JsonTypeInfo<T> info)
     {
-        string path = PathOf(name);
+        string path = Path.Combine(dir, name);
         string tmp = path + ".tmp";
         try
         {

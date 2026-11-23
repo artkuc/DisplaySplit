@@ -64,6 +64,23 @@ public sealed unsafe class TrayIcon : IDisposable
         if (_added) Shell32.Shell_NotifyIconW(C.NIM_MODIFY, Data(C.NIF_ICON | C.NIF_TIP | C.NIF_SHOWTIP));
     }
 
+    /// <summary>
+    /// For the elevated instance: is a tray callback plausibly a real user interaction? True if the cursor is on our
+    /// icon (mouse), or the taskbar / its overflow — which belong to the shell process — has the keyboard (keyboard).
+    /// </summary>
+    public bool IsGenuineInteraction()
+    {
+        var id = new NOTIFYICONIDENTIFIER { cbSize = (uint)sizeof(NOTIFYICONIDENTIFIER), hWnd = _host, uID = 1 };
+        if (User32.GetCursorPos(out var p) && Shell32.Shell_NotifyIconGetRect(id, out RECT r) == 0 &&
+            p.X >= r.Left - 2 && p.X < r.Right + 2 && p.Y >= r.Top - 2 && p.Y < r.Bottom + 2)
+            return true;
+        nint fg = User32.GetForegroundWindow(), shell = User32.GetShellWindow();
+        if (fg == 0 || shell == 0) return false;
+        User32.GetWindowThreadProcessId(fg, out uint fgPid);
+        User32.GetWindowThreadProcessId(shell, out uint shellPid);
+        return fgPid == shellPid;
+    }
+
     public void Balloon(string title, string text)
     {
         var d = Data(C.NIF_INFO);

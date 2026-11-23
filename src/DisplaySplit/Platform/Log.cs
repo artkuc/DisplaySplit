@@ -8,6 +8,13 @@ public static class Log
     static readonly object Lock = new();
     public static readonly bool Verbose = Environment.GetEnvironmentVariable("DISPLAYSPLIT_DEBUG") == "1";
     static string? _path;
+    static bool _disabled;
+
+    /// <summary>Stop writing the log file (an elevated process about to hand over must not touch the user folder).</summary>
+    public static void DisableFile() { lock (Lock) _disabled = true; }
+
+    /// <summary>Storage moved (admin mode): resolve the log path again.</summary>
+    internal static void ResetPath() { lock (Lock) _path = null; }
 
     static string LogPath => _path ??= Storage.PathOf("log.txt");
 
@@ -22,6 +29,7 @@ public static class Log
         System.Diagnostics.Debug.Write(line);
         lock (Lock)
         {
+            if (_disabled) return;
             try
             {
                 var fi = new FileInfo(LogPath);

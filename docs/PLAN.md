@@ -215,9 +215,27 @@ the main gate (so frameless Qt/Electron windows that report `HTCAPTION` work). W
 
 We detect elevation of the target (`OpenProcessToken`/`TokenElevation`; access denied ⇒ treat as elevated).
 If the target is elevated and we're not, we never swallow (native maximize happens) and never try to move it.
-Optional tray item "Manage admin windows" (milestone 7) re-registers autostart as a scheduled task with
-`RunLevel=HighestAvailable`, created from XML with `ExecutionTimeLimit=PT0S`, `DisallowStartIfOnBatteries=false`,
-`StopIfGoingOnBatteries=false`, `MultipleInstancesPolicy=IgnoreNew`. **[v6]** Single-instance: `CreateMutex` returning
+Optional tray item "Manage admin windows" (milestone 7, `Platform/AdminMode.cs`). **Implemented and hardened:**
+- A UAC-elevated installer (`--install-admin-mode`) copies the exe to `%ProgramFiles%\DisplaySplit` (explicit protected
+  ACL, owner Administrators, `OWNER RIGHTS` read-only) and registers an **on-demand** task (no triggers) with
+  `RunLevel=HighestAvailable`, `InteractiveToken`, `ExecutionTimeLimit=PT0S`, battery settings off, `IgnoreNew`, fixed
+  arguments `--admin-mode`, and a task SD that lets the user read/run but not change it. The task XML is written to the
+  protected folder (not `%TEMP%`); `schtasks.exe` is run by full path.
+- Autostart stays the HKCU Run key, pointing at the installed copy. Any non-elevated start finds the task, releases the
+  mutex and runs it (a named event marks logon starts). A different exe only explains how to update (off → new copy →
+  on); it never offers a UAC prompt itself (that would let any process phish a permanent elevation).
+- The installer pins its own exe (deny write/delete) as its first action and checks PE header fields against the
+  mapped image; it reads the user's data while impersonating the shell's non-elevated token.
+- The elevated instance never writes HKCU (autostart toggles run `--set-autostart on|off` unelevated); tray callbacks
+  are honoured only with the cursor on the icon (`Shell_NotifyIconGetRect`) or the taskbar in the foreground.
+- A split-token elevated start outside admin mode ("Run as administrator") restarts unelevated.
+- NativeAOT only: framework-dependent builds read `DOTNET_ROOT` / `DOTNET_STARTUP_HOOKS` from the user's environment.
+- The elevated instance stores data and log in `%ProgramFiles%\DisplaySplit\data\<SID>` (user read-only), never in a
+  user-writable folder. Turning the mode on imports the user's data (typed JSON only, no reparse points); turning it off
+  writes a handoff marker that the next non-elevated start imports back.
+- Process hardening: System32-only DLL search, image-load policy (no remote / low-IL images, prefer System32),
+  RedirectionGuard. Browser/Explorer are launched with the shell's non-elevated token (`CreateProcessWithTokenW`),
+  failing closed. **[v6]** Single-instance: `CreateMutex` returning
 `ERROR_ACCESS_DENIED` (elevated owner) counts as "already running"; the host window allows the open-editor message from
 lower integrity via `ChangeWindowMessageFilterEx`.
 

@@ -13,7 +13,7 @@ public sealed class Controller : IHostHandler, IDisposable
 
     // Tray menu ids
     const int M_EDIT = 1, M_ARRANGE = 2, M_EXCLUDE_FG = 3, M_FORGET_ALL = 4, M_DBL = 5, M_DRAG = 6, M_REMEMBER = 7,
-        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_PROJECT = 13, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
+        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_PROJECT = 13, M_ADMIN = 14, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
         M_INCLUDE_BASE = 5000;
 
     readonly Settings _settings;
@@ -56,7 +56,8 @@ public sealed class Controller : IHostHandler, IDisposable
         };
         _tray = new TrayIcon(App.Host.Handle);
 
-        if (_settings.StartWithWindows) Autostart.Set(true);
+        // (The admin-mode instance never writes HKCU; its non-elevated parent already pointed autostart at it.)
+        if (_settings.StartWithWindows && !AdminMode.IsActive) Autostart.Set(true);
         RegisterHotkeys();
         CaptionProbe.Start();
         MouseHook.Start(App.Host.Handle);
@@ -326,6 +327,9 @@ public sealed class Controller : IHostHandler, IDisposable
 
     public void OnTrayMessage(uint evt, int x, int y)
     {
+        // Elevated, this message is allowed through UIPI from any medium-integrity process: only act on it if it is
+        // plausibly a real interaction with our icon (no menu popped under the user's cursor by someone else).
+        if (WindowInfo.SelfElevated && !_tray.IsGenuineInteraction()) return;
         // NOTIFYICON_VERSION_4: one left click = NIN_SELECT, right click / menu key = WM_CONTEXTMENU.
         // (The raw WM_LBUTTONUP/WM_RBUTTONUP that also arrive are ignored so nothing fires twice.)
         switch (evt)
@@ -380,6 +384,10 @@ public sealed class Controller : IHostHandler, IDisposable
         items.Add(new MenuItem(M_DRAG, "Hold Shift while dragging to snap", Checked: _settings.ShiftDragSnap));
         items.Add(new MenuItem(M_REMEMBER, "Remember app positions", Checked: _settings.RememberPositions));
         items.Add(new MenuItem(M_AUTOSTART, "Start with Windows", Checked: Autostart.IsEnabled()));
+        if (AdminMode.Supported)
+            items.Add(new MenuItem(M_ADMIN, "Manage admin windows", Checked: AdminMode.IsActive, Enabled: !_adminBusy));
+        else if (AdminMode.AccountIsAdmin && !AdminMode.IsNativeAot)
+            items.Add(new MenuItem(0, "Manage admin windows (standalone build only)", Enabled: false));
         items.Add(MenuItem.Sep());
         items.Add(new MenuItem(M_HELP, "How to use && shortcuts…"));
         items.Add(new MenuItem(M_PROJECT, "Project page (GitHub)…"));
@@ -441,8 +449,9 @@ public sealed class Controller : IHostHandler, IDisposable
         {
             case M_EDIT: OpenOrFocusEditor(); break;
             case M_PROJECT:
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(App.ProjectUrl) { UseShellExecute = true }); }
-                catch (Exception ex) { Log.Warn(ex.Message); }
+                // Never opens the browser elevated (admin mode starts it with the shell's normal token).
+                if (!ShellLauncher.OpenUrl(App.ProjectUrl))
+                    User32.MessageBoxW(App.Host.Handle, App.ProjectUrl, "DisplaySplit", 0x40 /*INFORMATION*/);
                 break;
             case M_HELP:
                 if (_editor != null) _editor.ShowHelp();
@@ -462,14 +471,16 @@ public sealed class Controller : IHostHandler, IDisposable
             case M_REMEMBER: _settings.RememberPositions = !_settings.RememberPositions; SaveSettings(); break;
             case M_AUTOSTART:
                 bool on = !Autostart.IsEnabled();
-                Autostart.Set(on);
+                if (!AdminMode.IsActive) Autostart.Set(on);
+                else if (!AdminMode.SetAutostartUnelevated(on)) { Log.Warn("autostart: unelevated helper failed"); break; }
                 _settings.StartWithWindows = on;
                 SaveSettings();
                 break;
             case M_OPEN_FOLDER:
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Storage.Home}\"") { UseShellExecute = false }); }
-                catch (Exception ex) { Log.Warn(ex.Message); }
+                if (!ShellLauncher.OpenFolder(Storage.Home))
+                    User32.MessageBoxW(App.Host.Handle, Storage.Home, "DisplaySplit", 0x40 /*INFORMATION*/);
                 break;
+            case M_ADMIN: ToggleAdminMode(); break;
             case M_PAUSE:
                 _settings.Paused = !_settings.Paused;
                 ApplyFeatureSwitches();
@@ -478,6 +489,56 @@ public sealed class Controller : IHostHandler, IDisposable
                 break;
             case M_EXIT: App.Quit(); break;
         }
+    }
+
+    // ------------------------------------------------------------------ admin mode
+
+    bool _adminBusy;
+
+    void ToggleAdminMode()
+    {
+        nint owner = App.Host.Handle;
+        const uint OkCancel = 0x1, Info = 0x40, Warn = 0x30, Topmost = 0x40000;
+        if (AdminMode.IsActive)
+        {
+            if (User32.MessageBoxW(owner,
+                    "Stop managing windows of apps that run as administrator?\n\nDisplaySplit restarts without administrator rights and removes its scheduled task. " +
+                    "Your layouts and remembered positions are kept.",
+                    "DisplaySplit", OkCancel | Info | Topmost) != 1) return;
+            if (!AdminMode.Disable())
+            {
+                User32.MessageBoxW(owner, "Couldn't remove the scheduled task. Details are in the log (Open settings folder).", "DisplaySplit", Warn | Topmost);
+                return;
+            }
+            App.AfterExit = AdminMode.AfterDisable;
+            App.Quit();
+            return;
+        }
+
+        if (User32.MessageBoxW(owner,
+                "Manage windows of apps that run as administrator too?\n\n" +
+                "Windows asks once for administrator rights. DisplaySplit then:\n" +
+                $"•  installs a copy of itself in {AdminMode.InstallDir} (only administrators can change it),\n" +
+                "•  adds a scheduled task that starts that copy with administrator rights, without a prompt,\n" +
+                "•  keeps its settings in that folder while this is on.\n\n" +
+                "Only turn this on if you trust this copy of DisplaySplit. You can turn it off here at any time.",
+                "DisplaySplit", OkCancel | Info | Topmost) != 1) return;
+
+        Flush(); // the installer imports the current settings, layouts and positions
+        int code = AdminMode.RunInstallerElevated(owner, out nint process);
+        if (code == AdminMode.InstallCancelled) return;
+        if (code != AdminMode.InstallOk) { AdminMode.ShowInstallError(owner, code); return; }
+        _adminBusy = true;
+        // Wait off the UI thread; the hook and the tray stay responsive meanwhile.
+        Task.Run(() => AdminMode.WaitInstaller(process)).ContinueWith(t => App.Post(() =>
+        {
+            _adminBusy = false;
+            int result = t.IsCompletedSuccessfully ? t.Result : AdminMode.InstallFailed;
+            if (result != AdminMode.InstallOk) { AdminMode.ShowInstallError(owner, result); return; }
+            if (_settings.StartWithWindows) Autostart.Set(true, AdminMode.InstalledExe);
+            App.AfterExit = AdminMode.StartInstalled;
+            App.Quit();
+        }), TaskScheduler.Default);
     }
 
     // ------------------------------------------------------------------ system notifications

@@ -106,7 +106,7 @@ public sealed unsafe class SnapEngine(PlacementWorker worker)
         }
     }
 
-    static bool IsArranged(nint hwnd)
+    public static bool IsArranged(nint hwnd)
     {
         try { return User32.IsWindowArranged(hwnd); } catch (EntryPointNotFoundException) { return false; }
     }

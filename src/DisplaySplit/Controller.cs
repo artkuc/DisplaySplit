@@ -13,7 +13,7 @@ public sealed class Controller : IHostHandler, IDisposable
 
     // Tray menu ids
     const int M_EDIT = 1, M_ARRANGE = 2, M_EXCLUDE_FG = 3, M_FORGET_ALL = 4, M_DBL = 5, M_DRAG = 6, M_REMEMBER = 7,
-        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_PROJECT = 13, M_ADMIN = 14, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
+        M_AUTOSTART = 8, M_PAUSE = 9, M_EXIT = 10, M_OPEN_FOLDER = 11, M_HELP = 12, M_PROJECT = 13, M_ADMIN = 14, M_REPAIR = 15, M_LAYOUT_BASE = 1000, M_PRESET_BASE = 3000,
         M_INCLUDE_BASE = 5000;
 
     readonly Settings _settings;
@@ -27,7 +27,8 @@ public sealed class Controller : IHostHandler, IDisposable
     readonly DragOverlay _overlay = new();
     EditorSession? _editor;
     readonly List<string> _hotkeyFailures = [];
-    nuint _displayTimer, _pruneTimer, _peekTimer;
+    nuint _displayTimer, _pruneTimer, _peekTimer, _repairTimer;
+    string _displaySig = ""; // monitor set + geometry at the last display refresh we processed
 
     // Shift-drag state
     nint _dragHwnd;
@@ -45,6 +46,7 @@ public sealed class Controller : IHostHandler, IDisposable
         _settingsSaver = new DebouncedSaver<Settings>("settings.json", JsonCtx.Default.Settings, () => _settings);
         _layouts = new LayoutStore(() => _settings.GapPx);
         _layouts.Bind(MonitorService.Monitors);
+        _displaySig = DisplaySignature();
         _placements = new PlacementStore();
         _worker = new PlacementWorker();
         _snap = new SnapEngine(_worker);
@@ -383,6 +385,7 @@ public sealed class Controller : IHostHandler, IDisposable
         items.Add(new MenuItem(M_DBL, "Double-click title bar to snap", Checked: _settings.DoubleClickSnap));
         items.Add(new MenuItem(M_DRAG, "Hold Shift while dragging to snap", Checked: _settings.ShiftDragSnap));
         items.Add(new MenuItem(M_REMEMBER, "Remember app positions", Checked: _settings.RememberPositions));
+        items.Add(new MenuItem(M_REPAIR, "Fix windows shrunk after monitor sleep (experimental)", Checked: _settings.RepairAfterDisplayChange));
         items.Add(new MenuItem(M_AUTOSTART, "Start with Windows", Checked: Autostart.IsEnabled()));
         if (AdminMode.Supported)
             items.Add(new MenuItem(M_ADMIN, "Manage admin windows", Checked: AdminMode.IsActive, Enabled: !_adminBusy));
@@ -469,6 +472,11 @@ public sealed class Controller : IHostHandler, IDisposable
             case M_DBL: _settings.DoubleClickSnap = !_settings.DoubleClickSnap; ApplyFeatureSwitches(); SaveSettings(); break;
             case M_DRAG: _settings.ShiftDragSnap = !_settings.ShiftDragSnap; SaveSettings(); break;
             case M_REMEMBER: _settings.RememberPositions = !_settings.RememberPositions; SaveSettings(); break;
+            case M_REPAIR:
+                _settings.RepairAfterDisplayChange = !_settings.RepairAfterDisplayChange;
+                if (!_settings.RepairAfterDisplayChange) App.CancelTimeout(ref _repairTimer);
+                SaveSettings();
+                break;
             case M_AUTOSTART:
                 bool on = !Autostart.IsEnabled();
                 if (!AdminMode.IsActive) Autostart.Set(on);
@@ -557,11 +565,30 @@ public sealed class Controller : IHostHandler, IDisposable
             var after = MonitorService.Monitors.Select(m => (m.Key, m.Bounds, m.Work, m.Dpi)).ToList();
             if (_editor != null && !before.SequenceEqual(after)) _editor.Cancel(); // geometry changed under the editor
             _layouts.Bind(MonitorService.Monitors);
-            _engine.OnDisplayChanged();
+            // Compared with our own snapshot: MonitorService also refreshes lazily, so `before` may already be current.
+            string sig = DisplaySignature();
+            bool monitorsChanged = sig != _displaySig;
+            if (monitorsChanged) Log.Info($"displays changed: {sig}");
+            _displaySig = sig;
+            bool repair = monitorsChanged && _settings.RepairAfterDisplayChange && !_settings.Paused;
+            _engine.OnDisplayChanged(repairDrifted: repair);
+            if (repair)
+            {
+                // Windows (and apps reacting to the change) may still reposition windows a moment later.
+                App.CancelTimeout(ref _repairTimer);
+                _repairTimer = App.SetTimeout(3000, () =>
+                {
+                    _repairTimer = 0;
+                    if (_settings.RepairAfterDisplayChange && !_settings.Paused) _engine.RepairDriftedWindows();
+                });
+            }
             MouseHook.RequestReinstall();
             UpdateTray();
         });
     }
+
+    static string DisplaySignature() =>
+        string.Join("; ", MonitorService.Monitors.Select(m => $"{m.Key} {m.Bounds.Width}x{m.Bounds.Height}@{m.Bounds.Left},{m.Bounds.Top} {m.Dpi}dpi"));
 
     public void OnTaskbarCreated()
     {

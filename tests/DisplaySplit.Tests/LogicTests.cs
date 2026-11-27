@@ -202,3 +202,52 @@ public class InteropTests
         Assert.Equal(24, Marshal.SizeOf<PROPVARIANT>());
     }
 }
+
+public class DisplayRepairTests
+{
+    static readonly RectI Zone = new(0, 0, 2133, 2088);
+
+    [Fact]
+    public void Window_still_where_we_placed_it_is_not_drifted()
+    {
+        Assert.False(DisplayRepair.IsDrifted(Zone, Zone, Zone));
+        Assert.False(DisplayRepair.IsDrifted(Zone, new RectI(1, 0, 2134, 2088), Zone)); // within tolerance
+    }
+
+    [Fact]
+    public void Window_shrunk_by_windows_is_drifted()
+    {
+        Assert.True(DisplayRepair.IsDrifted(Zone, new RectI(0, 0, 1024, 728), Zone));
+        Assert.True(DisplayRepair.IsDrifted(Zone, new RectI(300, 200, 900, 700), Zone));
+    }
+
+    [Fact]
+    public void Move_only_window_centred_in_zone_is_not_drifted_when_unchanged()
+    {
+        var centred = Zone.CenterSize(800, 600);
+        Assert.False(DisplayRepair.IsDrifted(centred, centred, Zone));
+        Assert.True(DisplayRepair.IsDrifted(centred, new RectI(0, 0, 800, 600), Zone));
+    }
+
+    [Fact]
+    public void Unknown_placement_or_empty_rect_is_never_drifted()
+    {
+        Assert.False(DisplayRepair.IsDrifted(null, new RectI(0, 0, 1024, 728), Zone));
+        Assert.False(DisplayRepair.IsDrifted(Zone, default, Zone));
+    }
+
+    [Fact]
+    public void Window_back_in_its_zone_is_not_drifted()
+    {
+        var placedElsewhere = new RectI(10, 10, 500, 500);
+        Assert.False(DisplayRepair.IsDrifted(placedElsewhere, Zone, Zone));
+    }
+
+    [Fact]
+    public void New_setting_defaults_off_and_round_trips()
+    {
+        Assert.False(new Settings().RepairAfterDisplayChange);
+        var json = JsonSerializer.Serialize(new Settings { RepairAfterDisplayChange = true }, JsonCtx.Default.Settings);
+        Assert.True(JsonSerializer.Deserialize(json, JsonCtx.Default.Settings)!.RepairAfterDisplayChange);
+    }
+}

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fix windows shrunk after monitor sleep** (tray menu, experimental, off by default): when a monitor goes to sleep,
+  some setups report it as unplugged and Windows shrinks windows to fit a stand-in display. When the monitors change,
+  DisplaySplit now puts zone windows that Windows moved or shrank back into their zones, then checks again 3 seconds
+  later. Windows you moved yourself, or arranged with Windows Snap, are left alone.
+- The log records monitor changes, and how many windows were put back.
+
 ## [1.1.0] - 2026-11-23
 
 ### Added

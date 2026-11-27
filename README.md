@@ -86,6 +86,10 @@ The tray menu lets you:
 - stop remembering one app with *Don't remember "…"*, and undo that under *Excluded apps*;
 - toggle features, pause, and turn *Start with Windows* on or off;
 - turn on *Manage admin windows* (see below).
+- turn on *Fix windows shrunk after monitor sleep (experimental)*. On some setups (often DisplayPort), Windows treats a
+  sleeping monitor as unplugged and shrinks windows to fit a stand-in display, then leaves them small when the monitor
+  wakes up. With this on, DisplaySplit puts zone windows back into their zones after the monitors change. It only
+  touches windows it placed in a zone and that you haven't moved since. Off by default.
 
 ### Windows of apps that run as administrator
 

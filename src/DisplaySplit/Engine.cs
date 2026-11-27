@@ -851,8 +851,13 @@ public sealed class Engine : IWinEventSink
         _placements.MarkDirty();
     }
 
-    public void OnDisplayChanged()
+    /// <param name="repairDrifted">
+    /// Experimental (<see cref="Settings.RepairAfterDisplayChange"/>, monitor set changed): also put back zone windows
+    /// that Windows moved or shrank while the display was away.
+    /// </param>
+    public void OnDisplayChanged(bool repairDrifted = false)
     {
+        int repaired = 0;
         // Monitors may have been re-keyed by LayoutStore.Bind: follow them.
         foreach (var t in _tracked.Values)
             if (t.MonitorKey != null && MonitorService.ByKey(t.MonitorKey) is null && _layouts.MonitorForKey(t.MonitorKey) is { } nm)
@@ -876,7 +881,12 @@ public sealed class Engine : IWinEventSink
             {
                 if (User32.IsZoomed(t.Hwnd)) continue;
                 var z = ZoneForTracked(t, mon, t.ZoneRect);
-                if (z is not { } zz || zz.Rect.NearlyEquals(t.ZoneRect, 1)) continue;
+                if (z is not { } zz) continue;
+                if (zz.Rect.NearlyEquals(t.ZoneRect, 1))
+                {
+                    if (repairDrifted && RepairIfDrifted(t)) repaired++;
+                    continue;
+                }
                 var old = t.ZoneRect;
                 t.ZoneRect = zz.Rect;
                 t.ZoneId = zz.Id;
@@ -884,11 +894,44 @@ public sealed class Engine : IWinEventSink
                 else
                 {
                     var cur = WindowInfo.VisualRect(t.Hwnd);
-                    if (cur.NearlyEquals(old, 4) || (t.PlacedRect is { } pr && pr.NearlyEquals(cur, 2))) PlaceTracked(t, zz.Rect, false);
+                    bool drifted = repairDrifted && CanRepair(t) && DisplayRepair.IsDrifted(t.PlacedRect, cur, old);
+                    if (cur.NearlyEquals(old, 4) || (t.PlacedRect is { } pr && pr.NearlyEquals(cur, 2)) || drifted)
+                    {
+                        PlaceTracked(t, zz.Rect, false);
+                        if (drifted) repaired++;
+                    }
                 }
             }
         }
+        if (repaired > 0) Log.Info($"display repair: {repaired} window(s) put back into their zones");
     }
+
+    /// <summary>
+    /// Experimental follow-up pass (monitors unchanged): put back zone windows that drifted since the display change,
+    /// e.g. because Windows or the app repositioned them a moment after the monitor came back.
+    /// </summary>
+    public void RepairDriftedWindows()
+    {
+        int repaired = 0;
+        foreach (var mon in MonitorService.Monitors)
+            foreach (var t in _tracked.Values.Where(t => t.Kind == SlotKind.Zone && t.MonitorKey == mon.Key && User32.IsWindow(t.Hwnd)).ToList())
+                if (!User32.IsZoomed(t.Hwnd) && RepairIfDrifted(t)) repaired++;
+        if (repaired > 0) Log.Info($"display repair (follow-up): {repaired} window(s) put back into their zones");
+    }
+
+    bool RepairIfDrifted(Tracked t)
+    {
+        if (!CanRepair(t) || !DisplayRepair.IsDrifted(t.PlacedRect, WindowInfo.VisualRect(t.Hwnd), t.ZoneRect)) return false;
+        if (Log.Verbose) Log.Debug($"display repair 0x{t.Hwnd:X} → {t.ZoneRect}");
+        PlaceTracked(t, t.ZoneRect, false);
+        return true;
+    }
+
+    /// <summary>Only windows we are not busy with, that the user didn't arrange with Windows Snap, and that we may move.</summary>
+    bool CanRepair(Tracked t) =>
+        !_settings.Paused && !User32.IsIconic(t.Hwnd) && !_settling.ContainsKey(t.Hwnd) && !_snap.IsOwnMove(t.Hwnd) &&
+        _msHwnd != t.Hwnd && !SnapEngine.IsArranged(t.Hwnd) &&
+        WindowInfo.IsManageable(t.Hwnd) && !WindowInfo.IsBlockedByElevation(t.Hwnd);
 
     // ------------------------------------------------------------------ exclusions
 

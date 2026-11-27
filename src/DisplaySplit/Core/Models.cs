@@ -14,6 +14,9 @@ public sealed class Settings
     public bool Paused { get; set; }
     public int GapPx { get; set; }
     public bool FirstRunDone { get; set; }
+    /// <summary>Experimental: after the monitor set changes (e.g. a monitor woke up), put zone windows that Windows
+    /// moved or shrank back into their zones.</summary>
+    public bool RepairAfterDisplayChange { get; set; }
     /// <summary>App keys (see <see cref="AppIdentity.Key"/>) that are never remembered/restored.</summary>
     public List<string> ExcludedApps { get; set; } = [];
 }
